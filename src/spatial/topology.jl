@@ -172,3 +172,44 @@ function Base.show(io::IO, ::MIME"text/plain",
                    grid::Union{CartesianGridRej, CartesianGridIter})
     println(io, "A Cartesian grid with dimensions $(grid.dims)")
 end
+
+
+
+struct CartesianGridRejOG{N, T}
+    "dimensions (side lengths) of the grid"
+    dims::NTuple{N, Int}
+
+    "number of neighbor for each site"
+    nums_neighbors::Vector{Int}
+    CI::CartesianIndices{N, T}
+    LI::LinearIndices{N, T}
+
+    "offsets, e.g. [-1, 1] for 1D"
+    offsets::Vector{CartesianIndex{N}}
+end
+
+function CartesianGridRejOG(dims::Tuple)
+    dim = length(dims)
+    CI = CartesianIndices(dims)
+    LI = LinearIndices(dims)
+    offsets = potential_offsets(dim)
+    nums_neighbors = Int[count(x -> x + CI[site] in CI, offsets) for site in 1:prod(dims)]
+    CartesianGridRejOG(dims, nums_neighbors, CI, LI, offsets)
+end
+CartesianGridRejOG(dims) = CartesianGridRejOG(Tuple(dims))
+function CartesianGridRejOG(dimension, linear_size::Int)
+    CartesianGridRejOG([linear_size for i in 1:dimension])
+end
+function rand_nbr(rng, grid::CartesianGridRejOG, site::Int)
+    CI = grid.CI
+    offsets = grid.offsets
+    @inbounds I = CI[site]
+    while true
+        @inbounds nb = rand(rng, offsets) + I
+        @inbounds nb in CI && return grid.LI[nb]
+    end
+end
+function Base.show(io::IO, ::MIME"text/plain",
+    grid::CartesianGridRejOG)
+println(io, "A Cartesian grid with dimensions $(grid.dims)")
+end
